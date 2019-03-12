@@ -14,10 +14,10 @@ sftp_host = "localhost"
 sftp_port = 2233
 sftp_user = "gsingh"
 sftp_pass = "tc@5f^p"
-sftp_working_dir = "upload/"
+sftp_working_dir = "upload/documents/"
 pem_file = 'C:\\Users\\singhgo\\.ssh\\id_rsa'
 kafka_brokers = "localhost:29092"
-kafka_topic = "sftp-topic"
+kafka_topic = "sftp-topic-documents"
 
 
 class SftpDocumentKafka:
@@ -58,7 +58,7 @@ class SftpDocumentKafka:
                                cnopts=cnopts) as sftp:
             print('Connection established')
             print('********')
-            print(sftp.listdir('upload'))
+            print(sftp.listdir(self.SFTPWORKINGDIR))
             print('********')
 
             sftp_file_list = self.get_sftp_list_of_files(sftp)
@@ -73,17 +73,20 @@ class SftpDocumentKafka:
                 doc_file = file if (doc_file_ext in ['pdf', 'txt']) else ''
                 print(doc_file)
                 if doc_file != '':
-                    sftp.get(file, file)
+                    sftp.get(file, "../ui/DataLake_Search/static/" + file)
                     if doc_file_ext == 'pdf':
-                        with open(file, 'rb') as fh:
+                        with open("../ui/DataLake_Search/static/" + file, 'rb') as fh:
                             pdfReader = PyPDF2.PdfFileReader(fh)
                             num_pages = pdfReader.numPages
                             count = 0
                             text = ""
                             timestamp = dt.datetime.now().isoformat()
+                            print('**Num of pages***')
+                            print(num_pages)
 
                             while count < num_pages:
                                 pageObj = pdfReader.getPage(count)
+                                print('Page type: {}'.format(str(type(pageObj))))
                                 count +=1
                                 text += pageObj.extractText()
                             print(text)
@@ -93,8 +96,13 @@ class SftpDocumentKafka:
                                 'timestamp': timestamp
                             }
                             self.send_to_kafka(result)
+                            self.delete_file_from_sftp(sftp, folder="/upload/documents/", filename=file)
                 else:
                     print('This is not a pdf or txt file')
+
+    @staticmethod
+    def delete_file_from_sftp(sftp, folder, filename):
+        sftp.remove(folder + filename)
 
     def send_to_kafka(self, data):
         """Send JSON payload to topic in Kafka."""

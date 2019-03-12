@@ -81,7 +81,12 @@ class SftpDocumentKafka:
     @staticmethod
     def concat(type):
         def concat_(*args):
-            return list(chain(*args))
+            returnlist = []
+            for arg in args:
+                returnlist.append(str(arg))
+            #return list(chain(*args))
+            #print(returnlist)
+            return returnlist
         return sp_fn.udf(concat_, ArrayType(type))
 
     def connect_to_kafka(self):
@@ -168,8 +173,9 @@ class SftpDocumentKafka:
                                             .withColumn("filename", sp_fn.lit(file)) \
                                             .withColumn("actualtext", concat_string_arrays(*cols))
 
-                        data_metadata.show(10)
                         data_metadata.printSchema()
+
+                        data_metadata.show(10)
 
                         data_metadata \
                             .write \

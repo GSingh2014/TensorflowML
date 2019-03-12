@@ -19,10 +19,10 @@ sftp_host = "localhost"
 sftp_port = 2233
 sftp_user = "gsingh"
 sftp_pass = "tc@5f^p"
-sftp_working_dir = "upload/"
+sftp_working_dir = "upload/video_images/"
 pem_file = 'C:\\Users\\singhgo\\.ssh\\id_rsa'
 kafka_brokers = "localhost:29092"
-kafka_topic = "sftp-topic"
+kafka_topic = "sftp-topic-video-images"
 
 
 class SftpVideoKafka:
@@ -71,7 +71,7 @@ class SftpVideoKafka:
                                cnopts=cnopts) as sftp:
             print('Connection established')
             print('********')
-            print(sftp.listdir('upload'))
+            print(sftp.listdir(self.SFTPWORKINGDIR))
             print('********')
 
             sftp_file_list = self.get_sftp_list_of_files(sftp)
@@ -81,12 +81,18 @@ class SftpVideoKafka:
                 print(file)
                 print('---------------')
 
-                if file != 'archive':
-                    sftp.get(file, file)
-                    vidcap = cv2.VideoCapture(file)
+                doc_file_ext = str(file).split('.')[1]
+                print(doc_file_ext)
+                doc_file = file if (doc_file_ext in ['mp4', 'gif', 'jpg', 'jpeg']) else ''
+                print(doc_file)
+
+                if file != 'archive' and doc_file != '':
+                    sftp.get(file, "../ui/DataLake_Search/static/" + file)
+                    vidcap = cv2.VideoCapture("../ui/DataLake_Search/static/" + file)
                     success, image = vidcap.read()
                     if success is True:
                         jpg = cv2.imencode('.jpg', image)[1]
+                        #print(jpg)
                         jpg_as_text = base64.b64encode(jpg).decode('utf-8')
 
                         timestamp = dt.datetime.now().isoformat()
@@ -98,9 +104,10 @@ class SftpVideoKafka:
                         }
                         print(result)
                         self.send_to_kafka(result)
-                        self.save_image(image)
+                        # self.save_image(file, image)
+                        self.delete_file_from_sftp(sftp, folder="/upload/video_images/", filename=file)
                         vidcap.release()
-                        sleep(15.0)
+                        sleep(10.0)
                         """
                         Archive the file to upload/archive/ folder
                         """
@@ -118,9 +125,13 @@ class SftpVideoKafka:
             logger.error('Could not send the file to Kafka endpoint')
             logger.error(str(e))
 
-    def save_image(self, image):
+    @staticmethod
+    def delete_file_from_sftp(sftp, folder, filename):
+        sftp.remove(folder + filename)
+
+    def save_image(self, filename, image):
         """Save frame as JPEG file, for debugging purpose only."""
-        cv2.imwrite(self.img_file, image)
+        cv2.imwrite("ui/DataLake_Search/static/" + filename, image)
         logger.info(f'Saved image file to {self.img_file}.')
 
 

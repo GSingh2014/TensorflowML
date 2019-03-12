@@ -7,6 +7,7 @@ from timeit import default_timer as timer
 from PIL import Image
 import datetime as dt
 from random import randint
+import time
 
 # Streaming imports
 from pyspark import SparkContext, SparkConf
@@ -37,7 +38,7 @@ class SparkObjectDetector:
                  labels_file='',
                  number_classes=90,
                  detect_treshold=.1,
-                 topic_to_consume='sftp-topic',
+                 topic_to_consume='sftp-topic-video-images',
                  topic_for_produce='resultstream',
                  kafka_endpoint='localhost:29092'):
         """Initialize Spark & TensorFlow environment."""
@@ -97,6 +98,8 @@ class SparkObjectDetector:
                                                          "max.partition.fetch.bytes": "104857600",
                                                          "fetch.message.max.bytes": "204857600"}
                                             )
+        print(self.topic_to_consume)
+        kvs.pprint()
         kvs.foreachRDD(self.handler)
         self.ssc.start()
         self.ssc.awaitTermination()
@@ -285,7 +288,8 @@ class SparkObjectDetector:
         result = {'timestamp': event['timestamp'],
                   'filename': event['filename'],
                   'objects': self.format_object_desc(output),
-                  'image': self.get_annotated_image_as_text(image_np, output)
+                  'image': self.get_annotated_image_as_text(image_np, output),
+                  'topics': 'Video' if str(event['filename']).split(".")[1] in ['mp4', 'gif'] else 'Image'
                   }
         #result = {'ts': event['timestamp']
         #          }
@@ -294,8 +298,8 @@ class SparkObjectDetector:
     def handler(self, timestamp, message):
         """Collect messages, detect object and send to kafka endpoint."""
         records = message.collect()
-        #print('******Records******')
-        #print(records)
+        print('******Records******')
+        print(records)
         # For performance reasons, we only want to process the newest message
         # for every camera_id
         to_process = {}
@@ -308,16 +312,27 @@ class SparkObjectDetector:
         dt_now = dt.datetime.now()
         for record in records:
             event = json.loads(record[1])
+            print('***event***')
+            print(event)
             self.logger.info('Received Message: ' +
                              event['filename'] + ' - ' + event['timestamp'])
-            dt_event = dt.datetime.strptime(
-                event['timestamp'], '%Y-%m-%dT%H:%M:%S.%f')
-            delta = dt_now - dt_event
-            if delta.seconds > 5:
-                continue
+            print('Received Message: ' +
+                  event['filename'] + ' - ' + event['timestamp'])
+
+            time.sleep(5)
+            ### could possibly be used for a live camera feed
+            #dt_event = dt.datetime.strptime(
+            #    event['timestamp'], '%Y-%m-%dT%H:%M:%S.%f')
+            #delta = dt_now - dt_event
+            #if delta.seconds > 1:
+            #    continue
+
             to_process[event['filename']] = event
+            print('***to_preocess***')
+            print(to_process)
 
         if len(to_process) == 0:
+            print('***Length is 0***')
             self.logger.info('Skipping processing...')
 
         for key, event in to_process.items():
@@ -345,7 +360,7 @@ if __name__ == '__main__':
                     'mscoco_label_map.pbtxt',
         number_classes=90,
         detect_treshold=.1,  # .5 This is default treshold for annotations in image
-        topic_to_consume='sftp-topic',
+        topic_to_consume='sftp-topic-video-images',
         topic_for_produce='sftp-object-detection-topic',
         kafka_endpoint='localhost:29092')
     sod.start_processing()

@@ -23,7 +23,7 @@ class KafkaRecognizedImageToElastic:
                  es_host='127.0.0.1',
                  es_port='9200',
                  es_data_source='org.elasticsearch.spark.sql',
-                 es_checkpoint_location='src/main/resources/checkpoint-location-elasticsearch',
+                 es_checkpoint_location='src/main/resources/checkpoint-sftp-object-detection-topic-elasticsearch1',
                  es_index='sftp-files-' + datetime.datetime.today().strftime('%Y-%m-%d'),
                  es_doc_type='/files'):
         self.topic_to_consume = topic_to_consume
@@ -35,7 +35,8 @@ class KafkaRecognizedImageToElastic:
                                       .add("label", StringType())
                                       .add("score", StringType())
                                       .add("sector", ArrayType(StringType())))) \
-            .add("image", StringType())
+            .add("image", StringType()) \
+            .add('topics', StringType())
 
         # self.schema = StructType() \
         #     .add("ts", StringType()) \
@@ -138,6 +139,7 @@ class KafkaRecognizedImageToElastic:
         unique_object_max_score_df = parsed_json_df.withColumn("uniqueObjects",
                                                                udf_get_unique_objects_with_max_score(col("objects"))) \
                                                    .drop("objects")
+                                                   #.withColumn("topics", lit("Video/Image"))
 
         # unique_object_max_score_df = exploded_df.withColumn('maxScore',
         #                                                     exploded_df.groupby('objects.label').
@@ -154,6 +156,7 @@ class KafkaRecognizedImageToElastic:
         es_query = unique_object_max_score_df \
             .writeStream \
             .format("org.elasticsearch.spark.sql") \
+            .option("es.mapping.id", "filename") \
             .option("es.nodes", self.es_host) \
             .option("es.port", self.es_port) \
             .option("es.nodes.wan.only", "true") \
@@ -161,6 +164,7 @@ class KafkaRecognizedImageToElastic:
             .option("es.nodes.data.only", "false") \
             .option("es.index.auto.create", "true") \
             .option("checkpointLocation", self.es_checkpoint_location) \
+            .option("es.write.operation", "upsert") \
             .start(self.es_index + self.es_doc_type)
 
         es_query.awaitTermination()
