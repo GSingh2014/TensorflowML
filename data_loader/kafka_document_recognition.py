@@ -15,8 +15,8 @@ from nltk.tokenize import RegexpTokenizer
 import gensim
 import datetime
 
-os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.2,' \
-                                    'org.elasticsearch:elasticsearch-hadoop:6.4.3 pyspark-shell'
+#os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.2,' \
+#                                    'org.elasticsearch:elasticsearch-hadoop:6.4.3 pyspark-shell'
 
 
 class SftpDocumentClustering:
