@@ -23,7 +23,7 @@ class KafkaRecognizedImageToElastic:
                  es_host='127.0.0.1',
                  es_port='9200',
                  es_data_source='org.elasticsearch.spark.sql',
-                 es_checkpoint_location='src/main/resources/checkpoint-sftp-object-detection-topic-elasticsearch1',
+                 es_checkpoint_location='src/main/resources/checkpoint-sftp-object-detection-topic-elasticsearch2',
                  es_index='sftp-files-' + datetime.datetime.today().strftime('%Y-%m-%d'),
                  es_doc_type='/files'):
         self.topic_to_consume = topic_to_consume
